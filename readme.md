@@ -117,7 +117,7 @@ sch := lighttaskscheduler.MakeNewScheduler(
   container, actuator,
   lighttaskscheduler.Config{
     TaskLimit:    5, // 任务并发限制
-    ScanInterval: 100*time.Millisecond, // 系统扫描轮询周期，内存容器可以快速扫描，入股是 db 容器要注意配置合理的扫描间隔，防止对 db 造成比较大压力。
+    ScanInterval: 100*time.Millisecond, // 系统扫描轮询周期，内存容器可以快速扫描，如果是 db 容器要注意配置合理的扫描间隔，防止对 db 造成比较大压力。
   })
 
 // 添加任务

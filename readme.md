@@ -71,17 +71,17 @@
 
 根据是否可持久化，我们继续对任务容器抽象，分成两类任务容器：
 
-- [MemeoryContainer](https://github.com/memory-overflow/go-common-library/blob/main/task_scheduler/container/memory_container/memory_container.go)——内存型任务容器，优点：可以快读快写，缺点：不可持久化。MemeoryContainer 实际上是可以和业务无关的，所以框架预置了三种MemeoryContainer——[queueContainer](https://github.com/memory-overflow/go-common-library/blob/main/task_scheduler/container/memory_container/queue_container.go),[orderedMapContainer](https://github.com/memory-overflow/go-common-library/blob/main/task_scheduler/container/memory_container/orderedmap_container.go),[redisContainer](https://github.com/memory-overflow/go-common-library/blob/main/task_scheduler/container/memory_container/redis_container.go)。
+- [MemeoryContainer](https://github.com/memory-overflow/light-task-scheduler/blob/main/container/memory_container/memory_container.go)——内存型任务容器，优点：可以快读快写，缺点：不可持久化。MemeoryContainer 实际上是可以和业务无关的，所以框架预置了三种MemeoryContainer——[queueContainer](https://github.com/memory-overflow/light-task-scheduler/blob/main/container/memory_container/queue_container.go),[orderedMapContainer](https://github.com/memory-overflow/light-task-scheduler/blob/main/container/memory_container/orderedmap_container.go),[redisContainer](https://github.com/memory-overflow/light-task-scheduler/blob/main/container/memory_container/redis_container.go)。
 
-  - [queueContainer](https://github.com/memory-overflow/go-common-library/blob/main/task_scheduler/container/memory_container/queue_container.go)：queueContainer 队列型容器，任务无状态，无优先级，先进先出，任务数据，多进程数据无法共享数据
+  - [queueContainer](https://github.com/memory-overflow/light-task-scheduler/blob/main/container/memory_container/queue_container.go)：queueContainer 队列型容器，任务无状态，无优先级，先进先出，任务数据，多进程数据无法共享数据
 
-  - [orderedMapContainer](https://github.com/memory-overflow/go-common-library/blob/main/task_scheduler/container/memory_container/orderedmap_container.go)：[OrderedMap](https://github.com/memory-overflow/go-common-library/blob/main/stl_extension/ordered_map.go) 作为容器，支持任务优先级，多进程数据无法共享数据
+  - [orderedMapContainer](https://github.com/memory-overflow/light-task-scheduler/blob/main/container/memory_container/orderedmap_container.go)：[OrderedMap](https://github.com/memory-overflow/go-common-library/blob/main/stl_extension/ordered_map.go) 作为容器，支持任务优先级，多进程数据无法共享数据
 
-  - [redisContainer](https://github.com/memory-overflow/go-common-library/blob/main/task_scheduler/container/memory_container/redis_container.go)：redis 作为容器，支持任务优先级，并且可以多进程，多副本共享数据
+  - [redisContainer](https://github.com/memory-overflow/light-task-scheduler/blob/main/container/memory_container/redis_container.go)：redis 作为容器，支持任务优先级，并且可以多进程，多副本共享数据
 
-- [PersistContainer](https://github.com/memory-overflow/go-common-library/blob/main/task_scheduler/container/persist_container/persist_container.go)——可持久化任务容器，优点：可持久化存储，缺点：依赖db、需要扫描表，对 db 压力比较大。开发者可以参考[exampleSQLContainer](https://github.com/memory-overflow/go-common-library/blob/main/task_scheduler/container/persist_container/example_sql_container.go) 实现自己的 SQLContainer，修改数据表的结构。
+- [PersistContainer](https://github.com/memory-overflow/light-task-scheduler/blob/main/container/persist_container/persist_container.go)——可持久化任务容器，优点：可持久化存储，缺点：依赖db、需要扫描表，对 db 压力比较大。开发者可以参考[exampleSQLContainer](https://github.com/memory-overflow/light-task-scheduler/blob/main/container/persist_container/example_sql_container.go) 实现自己的 SQLContainer，修改数据表的结构。
 
-由于 MemeoryContainer 和 PersistContainer 各有优缺点，如果可以组合两种容器，生成一种新的任务容器[combinationContainer](https://github.com/memory-overflow/go-common-library/blob/main/task_scheduler/container/combination_container.go)，既能够通过内存实现快写快读，又能够通过DB实现可持久化。
+由于 MemeoryContainer 和 PersistContainer 各有优缺点，如果可以组合两种容器，生成一种新的任务容器[combinationContainer](https://github.com/memory-overflow/light-task-scheduler/blob/main/container/combination_container.go)，既能够通过内存实现快写快读，又能够通过DB实现可持久化。
 ![image](https://user-images.githubusercontent.com/15645203/210742391-ae2c60ac-9f19-4d1a-947b-634e3a3855ef.png)
 
 ## Usage
@@ -93,18 +93,18 @@
 2. /status，输入 taskId, 返回该任务的状态，是否已经完成，或者计算失败。
 3. /result，输入 taskId，如果任务已经完成，返回计算结果。
 
-服务代码参考 [add_service.go](https://github.com/memory-overflow/go-common-library/blob/main/task_scheduler/example/add_service/add_service.go)。
+服务代码参考 [add_service.go](https://github.com/memory-overflow/light-task-scheduler/blob/main/example/add_service/add_service.go)。
 
 现在我们通过本任务调度框架实现一个 a+b 任务调度系统，可以控制任务并发数，并且按照队列依次调度。
 
 #### 实现 a+b 任务执行器
-首先，需要实现一个 a+b 任务的执行器，执行器实际上就是调用 a+b 服务的接口。执行器的实现参考[example_actuator.go](https://github.com/memory-overflow/go-common-library/blob/main/task_scheduler/example/actuator/example_actuator.go)
+首先，需要实现一个 a+b 任务的执行器，执行器实际上就是调用 a+b 服务的接口。执行器的实现参考[example_actuator.go](https://github.com/memory-overflow/light-task-scheduler/blob/main/example/actuator/example_actuator.go)
 
 #### 实现 a+b 任务容器
 这里，我们直接使用队列来作为任务容器，所以可以直接用框架预置的 queueContainer 作为任务容器，无需单独实现。
 
 #### 实现调度
-参考代码[main.go](https://github.com/memory-overflow/go-common-library/blob/main/task_scheduler/example/main.go)
+参考代码[main.go](https://github.com/memory-overflow/light-task-scheduler/blob/main/example/main.go)
 
 ```go
 // 构建任务容器，队列长度 10000

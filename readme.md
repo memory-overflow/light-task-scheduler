@@ -75,7 +75,7 @@
 
   - [queueContainer](https://github.com/memory-overflow/light-task-scheduler/blob/main/container/memory_container/queue_container.go)：queueContainer 队列型容器，任务无状态，无优先级，先进先出，任务数据，多进程数据无法共享数据
 
-  - [orderedMapContainer](https://github.com/memory-overflow/light-task-scheduler/blob/main/container/memory_container/orderedmap_container.go)：[OrderedMap](https://github.com/memory-overflow/go-common-library/blob/main/stl_extension/ordered_map.go) 作为容器，支持任务优先级，多进程数据无法共享数据
+  - [orderedMapContainer](https://github.com/memory-overflow/light-task-scheduler/blob/main/container/memory_container/orderedmap_container.go)：[OrderedMap](https://github.com/memory-overflow/go-orderedmap/blob/main/ordered_map.go) 作为容器，支持任务优先级，多进程数据无法共享数据
 
   - [redisContainer](https://github.com/memory-overflow/light-task-scheduler/blob/main/container/memory_container/redis_container.go)：redis 作为容器，支持任务优先级，并且可以多进程，多副本共享数据
 

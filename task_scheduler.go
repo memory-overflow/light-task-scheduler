@@ -2,7 +2,7 @@ package lighttaskscheduler
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -14,7 +14,7 @@ type Config struct {
 	// ScanInterval 任务调度期会使用任务容器的接口定期获取任务等待队列和执行中的任务，进行调度和更新操作。
 	// 如果是 db 类的 TaskContainer, 可能涉及到扫 db，可以适当配置大一点。
 	ScanInterval time.Duration
-	TaskTimeout  time.Duration
+	TaskTimeout  time.Duration // 任务超时时间
 }
 
 // TaskScheduler 任务调度器，通过对任务容器和任务执行器的操作，实现任务调度
@@ -191,8 +191,8 @@ func (s *TaskScheduler) updateOnce(ctx context.Context) {
 			} else if st.TaskStatus == TASK_STATUS_RUNNING {
 				if s.config.TaskTimeout > 0 && task.TaskStartTime.Add(s.config.TaskTimeout).Before(time.Now()) {
 					// 任务超时
-					newTask, err := s.Container.ToFailedStatus(ctx, &task, errors.New("任务超时"))
-					if err != nil {
+					newTask, err := s.Container.ToFailedStatus(ctx, &task, fmt.Errorf("任务%v超时", s.config.TaskTimeout))
+					if err == nil {
 						s.Actuator.Stop(ctx, newTask)
 					}
 					return

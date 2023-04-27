@@ -1,15 +1,16 @@
 - [轻量级任务调度框架](#轻量级任务调度框架)
-  - [框架的设计思想和背景](#框架的设计思想和背景)
-    - [任务系统的整体设计](#任务系统的整体设计)
-    - [任务调度框架](#任务调度框架)
-    - [任务容器分类](#任务容器分类)
-      - [1. 同步任务和异步任务](#1-同步任务和异步任务)
-      - [2. 可持久任务和不可持久化任务](#2-可持久任务和不可持久化任务)
-  - [Usage](#usage)
-    - [使用内存容器实现 a+b 任务调度](#使用内存容器实现-ab-任务调度)
-      - [实现 a+b 任务执行器](#实现-ab-任务执行器)
-      - [实现 a+b 任务容器](#实现-ab-任务容器)
-      - [实现调度](#实现调度)
+	- [框架的设计思想和背景](#框架的设计思想和背景)
+		- [任务系统的整体设计](#任务系统的整体设计)
+		- [任务调度框架](#任务调度框架)
+		- [任务容器分类](#任务容器分类)
+			- [1. 同步任务和异步任务](#1-同步任务和异步任务)
+			- [2. 可持久任务和不可持久化任务](#2-可持久任务和不可持久化任务)
+	- [Usage](#usage)
+		- [使用内存容器实现视频裁剪异步任务调度](#使用内存容器实现视频裁剪异步任务调度)
+			- [定义视频裁剪任务](#定义视频裁剪任务)
+			- [实现视频裁剪任务执行器](#实现视频裁剪任务执行器)
+			- [实现视频裁剪任务容器](#实现视频裁剪任务容器)
+			- [实现调度](#实现调度)
 
 # 轻量级任务调度框架
 
@@ -38,7 +39,7 @@
 2. 任务执行器——真正的执行任务的逻辑。
 3. 任务调度器——对任务容器和任务执行器进行一些逻辑操作和逻辑配合，完成整体的任务调度流程。
 
-其中，容器和执行器和业务相关、可以用一系列的接口(interface)来抽象，开发者根据自己的业务实现接口。任务调度流程比较估计，可以由框架实现。
+其中，容器和执行器和业务相关、可以用一系列的接口(interface)来抽象，开发者根据自己的业务实现接口。任务调度流程比较固定，可以由框架实现。
 
 ![image](https://user-images.githubusercontent.com/15645203/210739259-86ef6480-097f-4189-98ac-3fe670dbe40b.png)
 
@@ -86,51 +87,83 @@
 
 ## Usage
 
-### 使用内存容器实现 a+b 任务调度
+### 使用内存容器实现视频裁剪异步任务调度
 
-有一个计算 a+b 的服务，由于该 a+b 是一种新的高维空间的计算规则，计算非常耗时耗资源，所以该服务设计成为异步的。该服务主要有三个接口
-1. /add, 输入 a, b，返回 taskId。
-2. /status，输入 taskId, 返回该任务的状态，是否已经完成，或者计算失败。
-3. /result，输入 taskId，如果任务已经完成，返回计算结果。
+首先实现一个异步裁剪的微服务，一共四个接口，需要先安装`ffmpeg`命令
+1. /VideoCut, 输入原视频, 裁剪开始时间，结束时间，返回 taskId。
+2. /Status，输入 taskId, 返回该任务的状态，是否已经完成，或者失败。
+3. /GetOutputVideo, 如果任务已经完成，输入 TaskId，返回已经完成的视频路径结果。
+4. /Stop, 如果任务执行时间过长，可以支持停止。
 
-服务代码参考 [add_service.go](https://github.com/memory-overflow/light-task-scheduler/blob/main/example/add_service/add_service.go)。
+服务代码参考 [video_cut_service.go](https://github.com/memory-overflow/light-task-scheduler/blob/dev/demo-video-cut/example/videocut_example/video_cut/video_cut_service.go)。
 
-现在我们通过本任务调度框架实现一个 a+b 任务调度系统，可以控制任务并发数，并且按照队列依次调度。
+现在我们通过本任务调度框架实现一个对裁剪任务进行调度系统，可以控制任务并发数，和任务超时时间。并且按照队列依次调度。
 
-#### 实现 a+b 任务执行器
-首先，需要实现一个 a+b 任务的执行器，执行器实际上就是调用 a+b 服务的接口。执行器的实现参考[example_actuator.go](https://github.com/memory-overflow/light-task-scheduler/blob/main/example/actuator/example_actuator.go)
+#### 定义视频裁剪任务
+```go
+// VideoCutTask 视频裁剪任务结构
+type VideoCutTask struct {
+	TaskId                   string
+	CutStartTime, CutEndTime float32
+	InputVideo               string
+}
+```
 
-#### 实现 a+b 任务容器
-这里，我们直接使用队列来作为任务容器，所以可以直接用框架预置的 queueContainer 作为任务容器，无需单独实现。
+#### 实现视频裁剪任务执行器
+实现一个视频裁剪任务的执行器，执行器实际上就是调用视频裁剪微服务的 API 接口。执行器的实现参考[video_cut_actuator.go](https://github.com/memory-overflow/light-task-scheduler/blob/dev/demo-video-cut/example/videocut_example/video_cut/video_cut_actuator.go), 这里对任务结果只是输出到 stdout 展示，不做后续更多处理了。
+
+#### 实现视频裁剪任务容器
+这里，我们简单的直接使用队列来作为任务容器，所以可以直接用框架预置的 queueContainer 作为任务容器，无需单独实现。
 
 #### 实现调度
-参考代码[main.go](https://github.com/memory-overflow/light-task-scheduler/blob/main/example/main.go)
+参考代码[main.go](https://github.com/memory-overflow/light-task-scheduler/blob/dev/demo-video-cut/example/videocut_example/main.go)，`go run main.go xxx.mp4` 可以执行 demo（需要安装 ffmpeg 命令）。
 
 ```go
-// 构建任务容器，队列长度 10000
-container := memeorycontainer.MakeQueueContainer(10000, 100*time.Millisecond)
-// 构建任务执行器
-actuator := actuator.MakeExampleActuator()
-// 构建调度器，自动开启调度
-sch := lighttaskscheduler.MakeNewScheduler(
-  context.Background(),
-  container, actuator,
-  lighttaskscheduler.Config{
-    TaskLimit:    5, // 任务并发限制
-    ScanInterval: 100*time.Millisecond, // 系统扫描轮询周期，内存容器可以快速扫描，入股是 db 容器要注意配置合理的扫描间隔，防止对 db 造成比较大压力。
-  })
+func main() {
+	inputVideo := os.Args[1]
+	go videocut.StartServer() // start video cut microservice
 
-// 添加任务
-for i := 0; i < 1000; i++ {
-  sch.AddTask(context.Background(),
-    lighttaskscheduler.Task{
-      TaskId: strconv.Itoa(i), // 每个任务都需要绑定一个唯一 id
-      TaskItem: task.ExampleTask{
-        TaskId: uint32(i),
-        A:      r.Int31() % 1000,
-        B:      r.Int31() % 1000,
-      },
-    })
+	// 构建队列容器，队列长度 10000
+	container := memeorycontainer.MakeQueueContainer(10000, 100*time.Millisecond)
+	// 构建裁剪任务执行器
+	actuator := videocut.MakeVideoCutActuator()
+	sch := lighttaskscheduler.MakeNewScheduler(
+		context.Background(),
+		container, actuator,
+		lighttaskscheduler.Config{
+			TaskLimit:    2, // 2 并发
+			ScanInterval: 50 * time.Millisecond,
+			TaskTimeout:  20 * time.Second, // 20s 超时时间
+		},
+	)
+
+	// 添加任务，把视频裁前 100s 剪成 10s 一个的视频
+	var c chan os.Signal
+	for i := 0; i < 100; i += 10 {
+		select {
+		case <-c:
+			return
+		default:
+			if err := sch.AddTask(context.Background(),
+				lighttaskscheduler.Task{
+					// 这里的任务 ID 是为了调度框架方便标识唯一任务的ID,
+					// 和微服务的任务ID不同，是映射关系
+					TaskId: strconv.Itoa(i), 
+					TaskItem: videocut.VideoCutTask{
+						InputVideo:   inputVideo,
+						CutStartTime: float32(i),
+						CutEndTime:   float32(i + 10),
+					},
+				}); err != nil {
+				log.Printf("add task TaskId %s failed: %v\n", strconv.Itoa(i), err)
+			}
+		}
+	}
+
+	for range c {
+		log.Println("stop Scheduling")
+		sch.Close()
+		return
+	}
 }
-
 ```

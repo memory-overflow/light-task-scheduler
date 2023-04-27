@@ -47,7 +47,11 @@ func MakeNewScheduler(
 // AddTask 添加一个任务，需要把任务转换成 lighttaskscheduler.Task 的通用形式
 // 注意一定要配置一个唯一的任务 id 标识
 func (s *TaskScheduler) AddTask(ctx context.Context, task Task) error {
-	return s.Container.AddTask(ctx, task)
+	newTask, err := s.Actuator.Init(ctx, &task) // 初始化任务
+	if err != nil {
+		return fmt.Errorf("task init failed: %v", err)
+	}
+	return s.Container.AddTask(ctx, *newTask)
 }
 
 // Close 停止调度

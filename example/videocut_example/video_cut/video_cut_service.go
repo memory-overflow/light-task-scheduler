@@ -107,7 +107,7 @@ func videoCut(w http.ResponseWriter, r *http.Request) {
 	// 添加
 	ctx, cancel := context.WithCancel(context.Background())
 	status := taskStatus{
-		cancel: cancel, // 支持 stop cancel 掉任务
+		cancel: cancel, // 支持 stop cancel 任务
 		status: TASK_STATUS_RUNNING,
 	}
 	runningTaskMap.Store(taskId, status)
@@ -157,6 +157,11 @@ func status(w http.ResponseWriter, r *http.Request) {
 	w.Write(bs)
 }
 
+// GetOutputVideoRequest ...
+type GetOutputVideoRequest struct {
+	TaskId string
+}
+
 // GetOutputVideoResponse ...
 type GetOutputVideoResponse struct {
 	TaskId      string
@@ -166,7 +171,7 @@ type GetOutputVideoResponse struct {
 
 func getOutputVideo(w http.ResponseWriter, r *http.Request) {
 	input, _ := ioutil.ReadAll(r.Body)
-	var req StatusRequest
+	var req GetOutputVideoRequest
 	json.Unmarshal(input, &req)
 	out, ok := outMap.Load(req.TaskId)
 	var rsp GetOutputVideoResponse

@@ -13,7 +13,7 @@ import (
 	framework "github.com/memory-overflow/light-task-scheduler"
 )
 
-// VideoCutActuator 示例执行器
+// VideoCutActuator 视频裁剪执行器
 type VideoCutActuator struct {
 	EndPoint string
 }
@@ -39,11 +39,10 @@ func (v *VideoCutActuator) Init(ctx context.Context, ftask *framework.Task) (
 	if task.CutStartTime > task.CutEndTime {
 		return ftask, fmt.Errorf("error: CutStartTime after CutEndTime")
 	}
-	log.Println("hhhhh")
 	return ftask, nil
 }
 
-// Run 执行任务
+// Start 执行任务
 func (e *VideoCutActuator) Start(ctx context.Context, ftask *framework.Task) (
 	newTask *framework.Task, ignoreErr bool, err error) {
 	task, ok := ftask.TaskItem.(VideoCutTask)

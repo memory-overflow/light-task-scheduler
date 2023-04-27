@@ -137,7 +137,7 @@ func (q *queueContainer) ToFailedStatus(ctx context.Context, task *lighttasksche
 	}
 	log.Printf("failed task %s, reason %v", task.TaskId, reason)
 	task.TaskStatus = lighttaskscheduler.TASK_STATUS_FAILED
-	return
+	return task, nil
 }
 
 // ToExportStatus 转移到数据导出状态

@@ -91,6 +91,9 @@
 ![image](https://user-images.githubusercontent.com/15645203/210742391-ae2c60ac-9f19-4d1a-947b-634e3a3855ef.png)
 
 ## Usage
+```
+go get -u github.com/memory-overflow/light-task-scheduler
+```
 
 ### 使用内存容器实现视频裁剪异步任务调度
 

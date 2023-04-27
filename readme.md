@@ -95,7 +95,7 @@
 3. /GetOutputVideo, 如果任务已经完成，输入 TaskId，返回已经完成的视频路径结果。
 4. /Stop, 如果任务执行时间过长，可以支持停止。
 
-服务代码参考 [video_cut_service.go](https://github.com/memory-overflow/light-task-scheduler/blob/dev/demo-video-cut/example/videocut_example/video_cut/video_cut_service.go)。
+服务代码参考 [video_cut_service.go](https://github.com/memory-overflow/light-task-scheduler/blob/main/example/videocut_example/video_cut/video_cut_service.go)。
 
 现在我们通过本任务调度框架实现一个对裁剪任务进行调度系统，可以控制任务并发数，和任务超时时间。并且按照队列依次调度。
 
@@ -110,13 +110,13 @@ type VideoCutTask struct {
 ```
 
 #### 实现视频裁剪任务执行器
-实现一个视频裁剪任务的执行器，执行器实际上就是调用视频裁剪微服务的 API 接口。执行器的实现参考[video_cut_actuator.go](https://github.com/memory-overflow/light-task-scheduler/blob/dev/demo-video-cut/example/videocut_example/video_cut/video_cut_actuator.go), 这里对任务结果只是输出到 stdout 展示，不做后续更多处理了。
+实现一个视频裁剪任务的执行器，执行器实际上就是调用视频裁剪微服务的 API 接口。执行器的实现参考[video_cut_actuator.go](https://github.com/memory-overflow/light-task-scheduler/blob/main/example/videocut_example/video_cut/video_cut_actuator.go), 这里对任务结果只是输出到 stdout 展示，不做后续更多处理了。
 
 #### 实现视频裁剪任务容器
 这里，我们简单的直接使用队列来作为任务容器，所以可以直接用框架预置的 queueContainer 作为任务容器，无需单独实现。
 
 #### 实现调度
-参考代码[main.go](https://github.com/memory-overflow/light-task-scheduler/blob/dev/demo-video-cut/example/videocut_example/main.go)，`go run main.go xxx.mp4` 可以执行 demo（需要安装 ffmpeg 命令）。
+参考代码[main.go](https://github.com/memory-overflow/light-task-scheduler/blob/main/example/videocut_example/main.go)，`go run main.go xxx.mp4` 可以执行 demo（需要安装 ffmpeg 命令）。
 
 ```go
 func main() {
@@ -166,9 +166,4 @@ func main() {
 		return
 	}
 }
-<<<<<<< HEAD
 ```
-=======
-
-```
->>>>>>> 7a438e32d39d825a30aa89e269399dbb9922cc1f

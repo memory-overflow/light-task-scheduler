@@ -11,6 +11,11 @@
 			- [实现视频裁剪任务执行器](#实现视频裁剪任务执行器)
 			- [实现视频裁剪任务容器](#实现视频裁剪任务容器)
 			- [实现调度](#实现调度)
+		- [实现同步a + b任务异步化调度](#实现同步a--b任务异步化调度)
+			- [定义a+b任务](#定义ab任务)
+			- [实现a+b任务执行器](#实现ab任务执行器)
+			- [实现a+b任务容器](#实现ab任务容器)
+			- [实现调度](#实现调度-1)
 
 # 轻量级任务调度框架
 
@@ -167,3 +172,48 @@ func main() {
 	}
 }
 ```
+
+
+### 实现同步a + b任务异步化调度
+#### 定义a+b任务
+```go
+// AddTask add 任务结构
+type AddTask struct {
+	StartTime time.Time
+	A, B      int32
+}
+```
+
+#### 实现a+b任务执行器
+实现一个a+b任务的执行器，支持同步任务的异步化。任务Start的时候，用一个协程后台异步执行，任务状态保存到内存中。
+```go
+func (add *AddActuator) work(taskId string, a, b int32) {
+	time.Sleep(time.Duration(rand.Intn(4000))*time.Millisecond + 2*time.Second) // 25% 概率超时
+	if _, ok := add.runningTask.Load(taskId); !ok {
+		// 任务可能因为超时被暂停，不处理
+		return
+	}
+	newStatus := framework.AsyncTaskStatus{
+		TaskStatus: framework.TASK_STATUS_SUCCESS,
+		Progress:   100.0,
+	}
+	add.resultMap.Store(taskId, a+b)
+	add.runningTask.Store(taskId, newStatus)
+}
+
+// Start 执行任务
+func (a *AddActuator) Start(ctx context.Context, ftask *framework.Task) (
+	newTask *framework.Task, ignoreErr bool, err error) {
+	....
+	go a.work(ftask.TaskId, task.A, task.B)
+	log.Printf("start success, taskid: %s\n", ftask.TaskId)
+	return ftask, false, nil
+}
+```
+执行器的实现参考[add_actuator.go](https://github.com/memory-overflow/light-task-scheduler/blob/main/example/add_example/add/add_actuator.go)。
+
+#### 实现a+b任务容器
+这里，我们简单的直接使用队列来作为任务容器，所以可以直接用框架预置的 queueContainer 作为任务容器，无需单独实现。
+
+#### 实现调度
+参考代码[main.go](https://github.com/memory-overflow/light-task-scheduler/blob/main/example/videocut_example/main.go)

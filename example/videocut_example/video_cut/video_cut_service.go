@@ -16,8 +16,8 @@ import (
 	"time"
 )
 
-// generateRandomString 生成随机字符串
-func generateRandomString(length int) string {
+// GenerateRandomString 生成随机字符串
+func GenerateRandomString(length int) string {
 	const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 	rand.Seed(time.Now().UTC().UnixNano())
 	result := make([]byte, length)
@@ -103,7 +103,7 @@ func videoCut(w http.ResponseWriter, r *http.Request) {
 	input, _ := ioutil.ReadAll(r.Body)
 	var req VideoCutReq
 	json.Unmarshal(input, &req)
-	taskId := "task-" + generateRandomString(8)
+	taskId := "work-" + GenerateRandomString(8)
 	// 添加
 	ctx, cancel := context.WithCancel(context.Background())
 	status := taskStatus{

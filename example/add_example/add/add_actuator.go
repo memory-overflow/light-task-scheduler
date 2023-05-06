@@ -61,21 +61,6 @@ func (a *AddActuator) Start(ctx context.Context, ftask *framework.Task) (
 	return ftask, false, nil
 }
 
-// ExportOutput 导出任务输出，自行处理任务结果
-func (a *AddActuator) ExportOutput(ctx context.Context, ftask *framework.Task) error {
-	task, ok := ftask.TaskItem.(AddTask)
-	if !ok {
-		return fmt.Errorf("TaskItem not be set to AddTask")
-	}
-	res, ok := a.resultMap.Load(ftask.TaskId)
-	if !ok {
-		return fmt.Errorf("not found result for task %s", ftask.TaskId)
-	}
-	log.Printf("finished task %s: %d + %d = %d \n", ftask.TaskId, task.A, task.B, res)
-	a.resultMap.Delete(ftask.TaskId) // delete result after export
-	return nil
-}
-
 // Stop 停止任务
 func (a *AddActuator) Stop(ctx context.Context, ftask *framework.Task) error {
 	// 同步任务无法真正暂停，只能删除状态
@@ -106,12 +91,13 @@ func (a *AddActuator) GetAsyncTaskStatus(ctx context.Context, ftasks []framework
 }
 
 // GetOutput ...
-func (e *AddActuator) GetOutput(ctx context.Context, task *framework.Task) (
+func (a *AddActuator) GetOutput(ctx context.Context, ftask *framework.Task) (
 	data interface{}, err error) {
-	return nil, nil
-}
-
-// GetOutput ...
-func (e *AddActuator) Delete(ctx context.Context, task *framework.Task) (err error) {
-	return nil
+	res, ok := a.resultMap.Load(ftask.TaskId)
+	if !ok {
+		return nil, fmt.Errorf("not found result for task %s", ftask.TaskId)
+	}
+	a.resultMap.Delete(ftask.TaskId) // delete result after get
+	// reutrn int32
+	return res, nil
 }

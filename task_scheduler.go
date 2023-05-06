@@ -15,6 +15,15 @@ type Config struct {
 	// 如果是 db 类的 TaskContainer, 可能涉及到扫 db，可以适当配置大一点。
 	ScanInterval time.Duration
 	TaskTimeout  time.Duration // 任务超时时间
+
+	// 是否需要调度器返回已完成的任务
+	// 如果为 true，需要通过
+	// for finishedTask := range TaskScheduler.FinshedTasks() {
+	//   ...
+	// }
+	// 及时取走 channel 中的数据，否则可能造成 channel 满了，任务调度阻塞
+	// 默认不开启，为 false
+	EnableFinshedTaskList bool
 }
 
 // TaskScheduler 任务调度器，通过对任务容器和任务执行器的操作，实现任务调度
@@ -24,8 +33,9 @@ type TaskScheduler struct {
 	// Actuator 配置的任务执行器
 	Actuator TaskActuator
 
-	config Config
-	ctx    context.Context
+	config      Config
+	ctx         context.Context
+	finshedTask chan *Task
 }
 
 // MakeNewScheduler 新建任务调度器
@@ -39,6 +49,9 @@ func MakeNewScheduler(
 		Actuator:  actuator,
 		config:    config,
 		ctx:       ctx,
+	}
+	if config.EnableFinshedTaskList {
+		scheduler.finshedTask = make(chan *Task, 10000)
 	}
 	go scheduler.start()
 	return scheduler
@@ -54,8 +67,25 @@ func (s *TaskScheduler) AddTask(ctx context.Context, task Task) error {
 	return s.Container.AddTask(ctx, *newTask)
 }
 
+// FinshedTasks 返回的完成的任务的 channel
+func (s *TaskScheduler) FinshedTasks() chan *Task {
+	return s.finshedTask
+}
+
+// StopTask 停止一个任务
+func (s *TaskScheduler) StopTask(ctx context.Context, ftask *Task) error {
+	ftask, err := s.Container.ToStopStatus(ctx, ftask)
+	if err != nil {
+		return err
+	}
+	return s.Actuator.Stop(ctx, ftask)
+}
+
 // Close 停止调度
 func (s *TaskScheduler) Close() {
+	if s.config.EnableFinshedTaskList {
+		close(s.finshedTask)
+	}
 }
 
 func (s *TaskScheduler) start() {
@@ -153,6 +183,57 @@ func (s *TaskScheduler) updateTaskStatus() {
 	}
 }
 
+func (s *TaskScheduler) finshed(ctx context.Context, task *Task) {
+	// 添加到完成的任务 channel
+	task.TaskEnbTime = time.Now()
+
+	if s.config.EnableFinshedTaskList {
+		c := time.NewTimer(50 * time.Millisecond)
+		retryCount := 0
+		select {
+		case s.finshedTask <- task:
+			return
+		case <-c.C:
+			// 因为缓存满了，导致加入不进去，chan 弹出一个元素
+			// 最多超时三次
+			if retryCount >= 3 {
+				return
+			}
+			c.Reset(0)
+			select {
+			case <-s.finshedTask:
+				break
+			case <-c.C:
+				break
+			}
+			c.Reset(0)
+			retryCount++
+		}
+	}
+}
+
+func (s *TaskScheduler) failed(ctx context.Context, task *Task, err error) (*Task, error) {
+	// 任务失败
+	log.Println(task)
+	newtask, err := s.Container.ToFailedStatus(ctx, task, err)
+	log.Println(newtask)
+	if err == nil {
+		s.finshed(ctx, newtask)
+	}
+	return newtask, err
+}
+
+func (s *TaskScheduler) success(ctx context.Context, task *Task) (*Task, error) {
+	// 任务成功
+	newtask, err := s.Container.ToSuccessStatus(ctx, task)
+	if err != nil {
+		newtask, err = s.failed(ctx, newtask, err)
+	} else {
+		s.finshed(ctx, newtask)
+	}
+	return newtask, err
+}
+
 func (s *TaskScheduler) updateOnce(ctx context.Context) {
 
 	runingTasks, err := s.Container.GetRunningTask(ctx)
@@ -175,27 +256,31 @@ func (s *TaskScheduler) updateOnce(ctx context.Context) {
 		go func() {
 			defer wg.Done()
 			if st.TaskStatus == TASK_STATUS_FAILED {
-				s.Container.ToFailedStatus(ctx, &task, st.FailedReason)
+				s.failed(ctx, &task, st.FailedReason)
 			} else if st.TaskStatus == TASK_STATUS_SUCCESS {
 				newtask, err := s.Container.ToExportStatus(ctx, &task)
 				if err != nil {
+					s.failed(ctx, newtask, err)
 					return
 				}
 				go func() {
-					// 导出结果可能比较耗时，异步导出
-					if err := s.Actuator.ExportOutput(ctx, newtask); err != nil {
-						s.Container.ToFailedStatus(ctx, newtask, err)
+					// 先从执行器获取任务执行结果
+					data, err := s.Actuator.GetOutput(ctx, newtask)
+					if err != nil {
+						s.failed(ctx, newtask, err)
 						return
 					}
-					if _, err := s.Container.ToSuccessStatus(ctx, newtask); err != nil {
-						s.Actuator.Delete(ctx, newtask) // 任务更新失败，执行器删除 ExportOutput 生成的相关资源
-						s.Container.ToFailedStatus(ctx, newtask, err)
+					// 保存任务结果
+					if err := s.Container.SaveData(ctx, newtask, data); err != nil {
+						s.failed(ctx, newtask, err)
+						return
 					}
+					s.success(ctx, newtask)
 				}()
 			} else if st.TaskStatus == TASK_STATUS_RUNNING {
 				if s.config.TaskTimeout > 0 && task.TaskStartTime.Add(s.config.TaskTimeout).Before(time.Now()) {
 					// 任务超时
-					newTask, err := s.Container.ToFailedStatus(ctx, &task, fmt.Errorf("任务%v超时", s.config.TaskTimeout))
+					newTask, err := s.failed(ctx, &task, fmt.Errorf("任务%v超时", s.config.TaskTimeout))
 					if err == nil {
 						s.Actuator.Stop(ctx, newTask)
 					}

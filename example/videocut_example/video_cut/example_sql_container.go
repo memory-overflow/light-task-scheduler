@@ -11,6 +11,7 @@ import (
 	framework "github.com/memory-overflow/light-task-scheduler"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	gormlogger "gorm.io/gorm/logger"
 )
 
@@ -75,7 +76,10 @@ func (e *videoCutSqlContainer) AddTask(ctx context.Context, ftask framework.Task
 	task.StartAt = &t
 	task.EndAt = nil
 
-	if err = db.Create(&task).Error; err != nil {
+	if err = db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "task_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"status", "start_time", "end_time"}),
+	}).Create(&task).Error; err != nil {
 		err = fmt.Errorf("db create error: %v", err)
 		log.Println(err)
 		return err
@@ -356,4 +360,50 @@ func (e *videoCutSqlContainer) SaveData(ctx context.Context, ftask *framework.Ta
 	task.OutputVideo = outputVideo
 	ftask.TaskItem = task
 	return nil
+}
+
+// 下面的方法用来做其他的业务查询
+
+// GetTaskInfoSet 分页拉取任务列表接口
+func (e *videoCutSqlContainer) GetTasks(ctx context.Context, pageNumber, pageSize int) (
+	tasks []VideoCutTask, count int, err error) {
+	db := e.db
+	tempDb := db.Model(VideoCutTask{}).Where("delete_time is null")
+	orderStr := "create_time DESC"
+	var total int64
+	tempDb.Count(&total)
+	count = int(total)
+	tempDb = tempDb.Order(orderStr).Offset((pageNumber - 1) * pageSize).Limit(pageSize)
+	if e := tempDb.Find(&tasks).Error; e != nil {
+		return nil, 0, e
+	}
+	return tasks, count, nil
+}
+
+// CreateTask 创建任务
+func (e *videoCutSqlContainer) CreateTask(ctx context.Context, task VideoCutTask) (err error) {
+	db := e.db
+	if err = db.Model(&task).Create(&task).Error; err != nil {
+		err = fmt.Errorf("db create error: %v", err)
+		log.Println(err)
+		return err
+	}
+	return nil
+}
+
+// GetTask 根据 taskId 查询任务
+func (e *videoCutSqlContainer) GetTask(ctx context.Context, taskId string) (
+	task *VideoCutTask, err error) {
+	db := e.db
+	tempTask := VideoCutTask{}
+	if err = db.Model(&tempTask).Where("task_id = ?", taskId).First(&tempTask).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("不存在的任务")
+		} else {
+			err = fmt.Errorf("db first error: %v", err)
+			log.Println(err)
+		}
+		return nil, err
+	}
+	return &tempTask, nil
 }

@@ -20,7 +20,7 @@ type VideoCutActuator struct {
 // MakeVideoCutActuator 构造执行器
 func MakeVideoCutActuator() *VideoCutActuator {
 	return &VideoCutActuator{
-		EndPoint: "http://127.0.0.1:8000",
+		EndPoint: "http://127.0.0.1:8001",
 	}
 }
 
@@ -72,7 +72,7 @@ func (e *VideoCutActuator) Stop(ctx context.Context, ftask *framework.Task) erro
 		return fmt.Errorf("TaskItem not be set to VideoCutTask")
 	}
 	req := StopRequest{
-		TaskId: task.TaskId,
+		TaskId: task.WorkTaskId,
 	}
 	var rsp StopResponse
 	err := httpcall.JsonPost(ctx, e.EndPoint+"/Stop", nil, req, &rsp)

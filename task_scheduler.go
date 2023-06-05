@@ -74,11 +74,16 @@ func (s *TaskScheduler) FinshedTasks() chan *Task {
 
 // StopTask 停止一个任务
 func (s *TaskScheduler) StopTask(ctx context.Context, ftask *Task) error {
+	oldStaus := ftask.TaskStatus
 	ftask, err := s.Container.ToStopStatus(ctx, ftask)
 	if err != nil {
 		return err
 	}
-	return s.Actuator.Stop(ctx, ftask)
+	if oldStaus == TASK_STATUS_RUNNING {
+		s.Actuator.Stop(ctx, ftask)
+	}
+	return nil
+
 }
 
 // Close 停止调度

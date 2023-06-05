@@ -160,3 +160,15 @@ func (c *combinationContainer) UpdateRunningTaskStatus(ctx context.Context,
 	}
 	return nil
 }
+
+// SaveData 导出任务输出，自行处理任务结果
+func (c *combinationContainer) SaveData(ctx context.Context, ftask *lighttaskscheduler.Task,
+	data interface{}) error {
+	if err := c.memeoryContainer.SaveData(ctx, ftask, data); err != nil {
+		return err
+	}
+	if err := c.persistContainer.SaveData(ctx, ftask, data); err != nil {
+		return err
+	}
+	return nil
+}

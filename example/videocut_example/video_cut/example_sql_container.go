@@ -68,7 +68,7 @@ func (e *videoCutSqlContainer) AddTask(ctx context.Context, ftask framework.Task
 
 	task, ok := ftask.TaskItem.(VideoCutTask)
 	if !ok {
-		return fmt.Errorf("TaskItem not be set to AddTask")
+		return fmt.Errorf("TaskItem not be set to VideoCutTask")
 	}
 	db := e.db
 	t := time.Now()
@@ -158,7 +158,7 @@ func (e *videoCutSqlContainer) ToRunningStatus(ctx context.Context, ftask *frame
 	}()
 	task, ok := ftask.TaskItem.(VideoCutTask)
 	if !ok {
-		return ftask, fmt.Errorf("TaskItem not be set to AddTask")
+		return ftask, fmt.Errorf("TaskItem not be set to VideoCutTask")
 	}
 	db := e.db
 	t := time.Now()
@@ -191,14 +191,16 @@ func (e *videoCutSqlContainer) ToStopStatus(ctx context.Context, ftask *framewor
 
 	task, ok := ftask.TaskItem.(VideoCutTask)
 	if !ok {
-		return ftask, fmt.Errorf("TaskItem not be set to AddTask")
+		return ftask, fmt.Errorf("TaskItem not be set to VideoCutTask")
 	}
 	db := e.db
-	sql := db.Model(&VideoCutTask{}).Where("task_id = ? and status = ?", ftask.TaskId, ftask.TaskStatus).
+	db = db.Debug()
+	sql := db.Model(&VideoCutTask{}).Where("task_id = ? and status = ?", task.TaskId, task.Status).
 		Update("status", framework.TASK_STATUS_STOPED)
 	if sql.Error != nil {
 		return ftask, fmt.Errorf("db update error: %v", sql.Error)
 	}
+	fmt.Println(sql.RowsAffected)
 	if sql.RowsAffected == 0 {
 		return ftask, fmt.Errorf("task %s not found, may status has been changed", task.TaskId)
 	}
@@ -217,10 +219,10 @@ func (e *videoCutSqlContainer) ToDeleteStatus(ctx context.Context, ftask *framew
 	}()
 	task, ok := ftask.TaskItem.(VideoCutTask)
 	if !ok {
-		return ftask, fmt.Errorf("TaskItem not be set to AddTask")
+		return ftask, fmt.Errorf("TaskItem not be set to VideoCutTask")
 	}
 	db := e.db
-	sql := db.Model(&VideoCutTask{}).Delete("task_id = ? and status = ?", ftask.TaskId, ftask.TaskStatus)
+	sql := db.Where("task_id = ? and status = ?", task.TaskId, task.Status).Delete(&VideoCutTask{})
 	if sql.Error != nil {
 		return ftask, fmt.Errorf("db delete error: %v", sql.Error)
 	}
@@ -242,7 +244,7 @@ func (e *videoCutSqlContainer) ToFailedStatus(ctx context.Context, ftask *framew
 	}()
 	task, ok := ftask.TaskItem.(VideoCutTask)
 	if !ok {
-		return ftask, fmt.Errorf("TaskItem not be set to AddTask")
+		return ftask, fmt.Errorf("TaskItem not be set to VideoCutTask")
 	}
 	db := e.db
 	t := time.Now()
@@ -275,7 +277,7 @@ func (e *videoCutSqlContainer) ToExportStatus(ctx context.Context, ftask *framew
 	}()
 	task, ok := ftask.TaskItem.(VideoCutTask)
 	if !ok {
-		return ftask, fmt.Errorf("TaskItem not be set to AddTask")
+		return ftask, fmt.Errorf("TaskItem not be set to VideoCutTask")
 	}
 	db := e.db
 	sql := db.Model(&VideoCutTask{}).Where("task_id = ? and status = ?", ftask.TaskId, ftask.TaskStatus).
@@ -301,7 +303,7 @@ func (e *videoCutSqlContainer) ToSuccessStatus(ctx context.Context, ftask *frame
 	}()
 	task, ok := ftask.TaskItem.(VideoCutTask)
 	if !ok {
-		return ftask, fmt.Errorf("TaskItem not be set to AddTask")
+		return ftask, fmt.Errorf("TaskItem not be set to VideoCutTask")
 	}
 	db := e.db
 	t := time.Now()
@@ -340,7 +342,7 @@ func (e *videoCutSqlContainer) SaveData(ctx context.Context, ftask *framework.Ta
 
 	task, ok := ftask.TaskItem.(VideoCutTask)
 	if !ok {
-		return fmt.Errorf("TaskItem not be set to AddTask")
+		return fmt.Errorf("TaskItem not be set to VideoCutTask")
 	}
 	db := e.db
 	outputVideo, ok := data.(string)

@@ -168,7 +168,7 @@ func (q *queueContainer) UpdateRunningTaskStatus(ctx context.Context,
 	return nil
 }
 
-// ExportOutput 导出任务输出，自行处理任务结果
+// SaveData 保存任务结果
 func (q *queueContainer) SaveData(ctx context.Context, ftask *lighttaskscheduler.Task,
 	data interface{}) error {
 	if q.savefunc != nil {

@@ -222,5 +222,5 @@ func StartServer() {
 	http.HandleFunc("/GetOutputVideo", getOutputVideo)
 	http.HandleFunc("/Stop", stop)
 	fmt.Printf("start videocut service ...\n")
-	http.ListenAndServe("127.0.0.1:8000", nil)
+	http.ListenAndServe("127.0.0.1:8001", nil)
 }

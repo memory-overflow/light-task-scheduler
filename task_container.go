@@ -37,8 +37,4 @@ type TaskContainer interface {
 
 	// UpdateRunningTaskStatus 更新执行中的任务执行进度状态
 	UpdateRunningTaskStatus(ctx context.Context, task *Task, status AsyncTaskStatus) error
-
-	// SaveData 提供一个把从任务执行器获取的任务执行的结果进行存储的机会
-	// data 协议保持和 TaskActuator.GetOutput 一样
-	SaveData(ctx context.Context, task *Task, data interface{}) (err error)
 }

@@ -1,4 +1,4 @@
-package addexample
+package add
 
 import "time"
 

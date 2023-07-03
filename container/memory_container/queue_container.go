@@ -10,8 +10,6 @@ import (
 	lighttaskscheduler "github.com/memory-overflow/light-task-scheduler"
 )
 
-type SaveDataFunc func(context.Context, *lighttaskscheduler.Task, interface{}) error
-
 // queueContainer 队列型容器，任务无状态，无优先级，先进先出，任务数据，多进程数据无法共享数据
 type queueContainer struct {
 	MemeoryContainer
@@ -22,16 +20,13 @@ type queueContainer struct {
 
 	waitingTasks chan lighttaskscheduler.Task
 	timeout      time.Duration
-	savefunc     SaveDataFunc
 }
 
 // MakeQueueContainer 构造队列型任务容器, size 表示队列的大小, timeout 表示队列读取的超时时间
-// 需要提供一个 savefunc 处理任务结束以后，任务数据如何处理，如何存储，如果不传，默认不处理任务结果
-func MakeQueueContainer(size uint32, timeout time.Duration, savefunc SaveDataFunc) *queueContainer {
+func MakeQueueContainer(size uint32, timeout time.Duration) *queueContainer {
 	return &queueContainer{
 		waitingTasks: make(chan lighttaskscheduler.Task, size),
 		timeout:      timeout,
-		savefunc:     savefunc,
 	}
 }
 
@@ -99,8 +94,13 @@ func (q *queueContainer) ToRunningStatus(ctx context.Context, task *lighttasksch
 	newTask *lighttaskscheduler.Task, err error) {
 	task.TaskStartTime = time.Now()
 	task.TaskStatus = lighttaskscheduler.TASK_STATUS_RUNNING
-	if _, ok := q.runningTaskMap.LoadOrStore(task.TaskId, *task); !ok {
+	t, ok := q.runningTaskMap.LoadOrStore(task.TaskId, *task)
+	if !ok {
 		atomic.AddInt32(&q.runningTaskCount, 1)
+	} else {
+		nt := t.(lighttaskscheduler.Task)
+		nt.TaskAttemptsTime = task.TaskAttemptsTime
+		q.runningTaskMap.Store(task.TaskId, nt)
 	}
 	return task, nil
 }
@@ -158,6 +158,9 @@ func (q *queueContainer) ToExportStatus(ctx context.Context, task *lighttasksche
 // ToSuccessStatus 转移到执行成功状态
 func (q *queueContainer) ToSuccessStatus(ctx context.Context, task *lighttaskscheduler.Task) (
 	newTask *lighttaskscheduler.Task, err error) {
+	if _, ok := q.runningTaskMap.LoadAndDelete(task.TaskId); ok {
+		atomic.AddInt32(&q.runningTaskCount, -1)
+	}
 	task.TaskStatus = lighttaskscheduler.TASK_STATUS_SUCCESS
 	return task, nil
 }
@@ -165,14 +168,5 @@ func (q *queueContainer) ToSuccessStatus(ctx context.Context, task *lighttasksch
 // UpdateRunningTaskStatus 更新执行中的任务状态
 func (q *queueContainer) UpdateRunningTaskStatus(ctx context.Context,
 	task *lighttaskscheduler.Task, status lighttaskscheduler.AsyncTaskStatus) error {
-	return nil
-}
-
-// SaveData 保存任务结果
-func (q *queueContainer) SaveData(ctx context.Context, ftask *lighttaskscheduler.Task,
-	data interface{}) error {
-	if q.savefunc != nil {
-		return q.savefunc(ctx, ftask, data)
-	}
 	return nil
 }

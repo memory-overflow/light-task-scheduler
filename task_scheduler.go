@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -39,6 +40,7 @@ type Config struct {
 	// 是否开启任务状态回调，回调比轮询对任务状态维护具有更地的延时，能够及时更新完成的任务
 	// 如果有条件，建议同时开始轮询和回调，回调可以更早的感知任务结束，
 	// 轮询可以为任务回调失败或者丢失兜底，保证任务状态一定可以更新
+	// 单回调模式，无法对任务进行超时感知处理
 	EnableStateCallback bool
 
 	// CallbackReceiver 任务回调接收器
@@ -94,10 +96,10 @@ type TaskScheduler struct {
 	wg *stlextension.LimitWaitGroup
 }
 
-// MakeNewScheduler 新建任务调度器
+// MakeScheduler 新建任务调度器
 // 如果不需要对任务数据此久化，persistencer 可以设置为 nil
 // 调度器构建以后，自动开始任务调度
-func MakeNewScheduler(
+func MakeScheduler(
 	container TaskContainer,
 	actuator TaskActuator,
 	persistencer TaskdataPersistencer,
@@ -192,19 +194,30 @@ func (s *TaskScheduler) cleanProcessTask() {
 		case <-s.ctx.Done():
 			return
 		case <-ticker.C:
-			s.lock.Lock()
-			defer s.lock.Unlock()
-			for s.count > 0 {
-				if s.taskProcessedTime[s.head].t.After(time.Now().Add(-5 * time.Second)) {
-					delete(s.processedTask, s.taskProcessedTime[s.head].taskId)
-					s.head++
-					if s.head > s.bufflen {
-						s.bufflen = 0
+			func() {
+				s.lock.Lock()
+				defer func() {
+					if p := recover(); p != nil {
+						fmt.Printf("panic=%v stacktrace=%s\n", p, debug.Stack())
 					}
-				} else {
-					break
+					s.lock.Unlock()
+				}()
+
+				for s.count > 0 {
+					if s.taskProcessedTime[s.head].t.After(time.Now().Add(-5 * time.Second)) {
+						delete(s.processedTask, s.taskProcessedTime[s.head].taskId)
+						s.head++
+						s.count--
+						if s.head > s.bufflen {
+							s.bufflen = 0
+						}
+					} else {
+						break
+					}
 				}
-			}
+
+			}()
+
 		}
 	}
 }
@@ -213,17 +226,20 @@ func (s *TaskScheduler) start() {
 	go s.schedulerTask()
 
 	if s.config.EnableStateCallback {
-		// 如果开启任务回调，必须要开启重复处理检测
-		s.enableProcessedCheck = true
-		s.processedTask = make(map[string]bool)
-		s.bufflen = 10000
-		s.taskProcessedTime = make([]processTime, s.bufflen)
-		go s.cleanProcessTask()
 		go s.updateCallbackTask()
 	}
 
 	if !s.config.DisableStatePoll {
 		go s.updateTaskStatus()
+	}
+
+	if s.config.EnableStateCallback && !s.config.DisableStatePoll {
+		// 如果同时开启轮询和回调，必须要开启重复处理检测
+		s.enableProcessedCheck = true
+		s.processedTask = make(map[string]bool)
+		s.bufflen = 10000
+		s.taskProcessedTime = make([]processTime, s.bufflen)
+		go s.cleanProcessTask()
 	}
 }
 
@@ -304,7 +320,7 @@ func (s *TaskScheduler) updateTaskStatus() {
 			}
 		}
 	} else {
-		ticker := time.NewTicker(s.config.SchedulingPollInterval)
+		ticker := time.NewTicker(s.config.StatePollInterval)
 		for {
 			select {
 			case <-s.ctx.Done():
@@ -329,13 +345,13 @@ func (s *TaskScheduler) updateCallbackTask() {
 			if task.TaskStatus == TASK_STATUS_FAILED {
 				// 失败可以重试
 				if task.TaskAttemptsTime < s.config.MaxFailedAttempts {
+					task.TaskAttemptsTime++
 					newTask, _, err := s.Actuator.Start(s.ctx, &task)
 					// 尝试重启失败
 					if err != nil {
 						resaon := fmt.Errorf("任务执行失败：%v, 并且尝试重启也失败 %v", task.FailedReason, err)
 						s.failed(s.ctx, &task, resaon)
 					} else {
-						newTask.TaskAttemptsTime++
 						_, err = s.Container.ToRunningStatus(s.ctx, newTask) // 更新状态
 						if err != nil {
 							s.Actuator.Stop(s.ctx, newTask)
@@ -383,13 +399,13 @@ func (s *TaskScheduler) updateOnce(ctx context.Context) {
 				}
 				// 失败可以重试
 				if task.TaskAttemptsTime < s.config.MaxFailedAttempts {
+					task.TaskAttemptsTime++
 					newTask, _, err := s.Actuator.Start(ctx, &task)
 					// 尝试重启失败
 					if err != nil {
 						resaon := fmt.Errorf("任务执行失败：%v, 并且尝试重启也失败 %v", st.FailedReason, err)
 						s.failed(ctx, &task, resaon)
 					} else {
-						newTask.TaskAttemptsTime++
 						_, err = s.Container.ToRunningStatus(ctx, newTask) // 更新状态
 						if err != nil {
 							s.Actuator.Stop(ctx, newTask)

@@ -23,36 +23,40 @@ func main() {
 
 	// 构建队列容器，队列长度 10000
 	var container lighttaskscheduler.TaskContainer
+	var persistencer lighttaskscheduler.TaskdataPersistencer
 	var scanInterval time.Duration // 调度器扫描间隔时间
+
 	if mode == "queue" {
-		save := func(ctx context.Context, ftask *lighttaskscheduler.Task, data interface{}) error {
-			log.Printf("save task %s: output_video = %s \n", ftask.TaskId, data.(string))
-			return nil
-		} // 处理结果的回调函数
-		container = memeorycontainer.MakeQueueContainer(10000, 100*time.Millisecond, save)
+		persistencer = nil
+		container = memeorycontainer.MakeQueueContainer(10000, 100*time.Millisecond)
 		scanInterval = 50 * time.Millisecond
 	} else if mode == "sql" {
 		var err error
-		container, err = videocut.MakeVideoCutSqlContainer("127.0.0.1", "3306", "root", "Zgh123456789.", "test")
+		videocutContainer, err := videocut.MakeVideoCutSqlContainer("127.0.0.1", "3306", "root", "", "test")
 		if err != nil {
 			log.Fatalf("build container failed: %v\n", err)
 		}
+		persistencer = videocutContainer
+		container = videocutContainer
 		scanInterval = 2 * time.Second
 	}
 
 	// 构建裁剪任务执行器
 	actuator := videocut.MakeVideoCutActuator()
-	sch := lighttaskscheduler.MakeNewScheduler(
-		context.Background(),
-		container, actuator,
+	sch, err := lighttaskscheduler.MakeScheduler(
+		container, actuator, persistencer,
 		lighttaskscheduler.Config{
-			TaskLimit:             2, // 2 并发
-			ScanInterval:          scanInterval,
-			TaskTimeout:           20 * time.Second, // 20s 超时时间
-			EnableFinshedTaskList: true,             // 开启已完成任务返回功能
+			TaskLimit:              2,                // 2 并发
+			TaskTimeout:            20 * time.Second, // 20s 超时时间
+			EnableFinshedTaskList:  true,             // 开启已完成任务返回功能
+			SchedulingPollInterval: scanInterval,
+			DisableStatePoll:       false,
+			StatePollInterval:      scanInterval,
 		},
 	)
-
+	if err != nil {
+		log.Fatalf("make schedule failed: %v\n", err)
+	}
 	// 添加任务，把视频裁前 100s 剪成 10s 一个的视频
 	for i := 0; i < 100; i += 10 {
 		// 这里的任务 ID 是为了调度框架方便标识唯一任务的ID, 和微服务的任务ID不同，是映射关系

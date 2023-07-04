@@ -164,9 +164,10 @@ func (e *videoCutSqlContainer) ToRunningStatus(ctx context.Context, ftask *frame
 	t := time.Now()
 	sql := db.Model(&VideoCutTask{}).Where("task_id = ? and status = ?", ftask.TaskId, ftask.TaskStatus).
 		Updates(map[string]interface{}{
-			"status":       framework.TASK_STATUS_RUNNING,
-			"start_time":   t,
-			"work_task_id": task.WorkTaskId,
+			"status":        framework.TASK_STATUS_RUNNING,
+			"start_time":    t,
+			"work_task_id":  task.WorkTaskId,
+			"attempts_time": ftask.TaskAttemptsTime,
 		})
 	if sql.Error != nil {
 		return ftask, fmt.Errorf("db update error: %v", sql.Error)
@@ -194,7 +195,6 @@ func (e *videoCutSqlContainer) ToStopStatus(ctx context.Context, ftask *framewor
 		return ftask, fmt.Errorf("TaskItem not be set to VideoCutTask")
 	}
 	db := e.db
-	db = db.Debug()
 	sql := db.Model(&VideoCutTask{}).Where("task_id = ? and status = ?", task.TaskId, task.Status).
 		Update("status", framework.TASK_STATUS_STOPED)
 	if sql.Error != nil {
@@ -334,33 +334,7 @@ func (e *videoCutSqlContainer) UpdateRunningTaskStatus(ctx context.Context,
 // data 协议保持和 TaskActuator.GetOutput 一样, 一个 string 表示结果路径
 func (e *videoCutSqlContainer) SaveData(ctx context.Context, ftask *framework.Task,
 	data interface{}) (err error) {
-	defer func() {
-		if err != nil {
-			log.Println("SaveData:", err)
-		}
-	}()
 
-	task, ok := ftask.TaskItem.(VideoCutTask)
-	if !ok {
-		return fmt.Errorf("TaskItem not be set to VideoCutTask")
-	}
-	db := e.db
-	outputVideo, ok := data.(string)
-	if !ok {
-		return fmt.Errorf("data not be set to string")
-	}
-	sql := db.Model(&VideoCutTask{}).Where("task_id = ?", ftask.TaskId).
-		Updates(map[string]interface{}{
-			"output_video": outputVideo,
-		})
-	if sql.Error != nil {
-		return fmt.Errorf("db update error: %v", sql.Error)
-	}
-	if sql.RowsAffected == 0 {
-		return fmt.Errorf("task %s not found, may status has been changed", task.TaskId)
-	}
-	task.OutputVideo = outputVideo
-	ftask.TaskItem = task
 	return nil
 }
 
@@ -408,4 +382,45 @@ func (e *videoCutSqlContainer) GetTask(ctx context.Context, taskId string) (
 		return nil, err
 	}
 	return &tempTask, nil
+}
+
+func (e videoCutSqlContainer) DataPersistence(
+	ctx context.Context, ftask *framework.Task, data interface{}) (err error) {
+	defer func() {
+		if err != nil {
+			log.Println("SaveData:", err)
+		}
+	}()
+
+	task, ok := ftask.TaskItem.(VideoCutTask)
+	if !ok {
+		return fmt.Errorf("TaskItem not be set to VideoCutTask")
+	}
+	db := e.db
+	outputVideo, ok := data.(string)
+	if !ok {
+		return fmt.Errorf("data not be set to string")
+	}
+	sql := db.Model(&VideoCutTask{}).Where("task_id = ?", ftask.TaskId).
+		Updates(map[string]interface{}{
+			"output_video": outputVideo,
+		})
+	if sql.Error != nil {
+		return fmt.Errorf("db update error: %v", sql.Error)
+	}
+	if sql.RowsAffected == 0 {
+		return fmt.Errorf("task %s not found, may status has been changed", task.TaskId)
+	}
+	return nil
+}
+
+// GetPersistenceData 查询任务持久化结果
+func (e videoCutSqlContainer) GetPersistenceData(ctx context.Context, task *framework.Task) (
+	data interface{}, err error) {
+	return nil, nil
+}
+
+// DeletePersistenceData 删除任务的此久化结果
+func (e videoCutSqlContainer) DeletePersistenceData(ctx context.Context, task *framework.Task) (err error) {
+	return nil
 }

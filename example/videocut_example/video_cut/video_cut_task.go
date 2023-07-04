@@ -22,6 +22,7 @@ type VideoCutTask struct {
 	DeletedAt    gorm.DeletedAt       `gorm:"default:NULL;column:delete_time"`
 	StartAt      *time.Time           `gorm:"default:NULL;column:start_time"` // 任务开始时间
 	EndAt        *time.Time           `gorm:"default:NULL;column:end_time"`   // 任务结束时间
+	AttemptsTime int                  `gorm:"default:0"`                      // 重试次数
 }
 
 // TableName 更改数据库表名

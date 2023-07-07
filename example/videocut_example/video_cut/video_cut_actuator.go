@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/memory-overflow/go-common-library/httpcall"
 	framework "github.com/memory-overflow/light-task-scheduler"
@@ -21,7 +20,7 @@ type VideoCutActuator struct {
 // MakeVideoCutActuator 构造执行器
 func MakeVideoCutActuator() *VideoCutActuator {
 	return &VideoCutActuator{
-		EndPoint: "http://127.0.0.1:8000",
+		EndPoint: "http://127.0.0.1:8001",
 	}
 }
 
@@ -60,36 +59,10 @@ func (e *VideoCutActuator) Start(ctx context.Context, ftask *framework.Task) (
 		return nil, true, err // 网络问题导致调度，忽略错误，重试调度
 	}
 
-	task.TaskId = rsp.TaskId
+	task.WorkTaskId = rsp.TaskId
 	ftask.TaskItem = task
 	log.Printf("[fTaskId:%s, cutTaskId:%s]start success\n", ftask.TaskId, rsp.TaskId)
 	return ftask, false, nil
-}
-
-// ExportOutput 导出任务输出，自行处理任务结果
-func (e *VideoCutActuator) ExportOutput(ctx context.Context, ftask *framework.Task) error {
-	task, ok := ftask.TaskItem.(VideoCutTask)
-	if !ok {
-		return fmt.Errorf("TaskItem not be set to VideoCutTask")
-	}
-	req := StatusRequest{
-		TaskId: task.TaskId,
-	}
-	var rsp GetOutputVideoResponse
-	err := httpcall.JsonPost(ctx, e.EndPoint+"/GetOutputVideo", nil, req, &rsp)
-	if err != nil {
-		log.Printf("[fTaskId:%s, cutTaskId:%s]get video output error: %v\n",
-			ftask.TaskId, task.TaskId, err)
-		return err
-	}
-	if rsp.Reason != "" {
-		err = fmt.Errorf("[TaskId:%s]get video output error: %s", task.TaskId, rsp.Reason)
-		return err
-	}
-	log.Printf("[fTaskId:%s, cutTaskId:%s]finished cut %s from %g to %g, output: %s, timecost: %ds",
-		ftask.TaskId, task.TaskId, task.InputVideo, task.CutStartTime, task.CutEndTime,
-		rsp.OutputVideo, (time.Now().Unix() - ftask.TaskStartTime.Unix()))
-	return nil
 }
 
 // Stop 停止任务
@@ -99,7 +72,7 @@ func (e *VideoCutActuator) Stop(ctx context.Context, ftask *framework.Task) erro
 		return fmt.Errorf("TaskItem not be set to VideoCutTask")
 	}
 	req := StopRequest{
-		TaskId: task.TaskId,
+		TaskId: task.WorkTaskId,
 	}
 	var rsp StopResponse
 	err := httpcall.JsonPost(ctx, e.EndPoint+"/Stop", nil, req, &rsp)
@@ -137,7 +110,7 @@ func (e *VideoCutActuator) GetAsyncTaskStatus(ctx context.Context, tasks []frame
 			}
 
 			req := StatusRequest{
-				TaskId: task.TaskId,
+				TaskId: task.WorkTaskId,
 			}
 			var rsp StatusResponse
 			err := httpcall.JsonPost(ctx, e.EndPoint+"/Status", nil, req, &rsp)
@@ -182,10 +155,26 @@ func (e *VideoCutActuator) GetAsyncTaskStatus(ctx context.Context, tasks []frame
 // GetOutput 提供业务查询任务结果的接口
 func (e *VideoCutActuator) GetOutput(ctx context.Context, ftask *framework.Task) (
 	data interface{}, err error) {
-	return nil, nil
-}
-
-// GetOutput ...
-func (e *VideoCutActuator) Delete(ctx context.Context, ftask *framework.Task) (err error) {
-	return e.Stop(ctx, ftask)
+	task, ok := ftask.TaskItem.(VideoCutTask)
+	if !ok {
+		return nil, fmt.Errorf("TaskItem not be set to VideoCutTask")
+	}
+	req := StatusRequest{
+		TaskId: task.WorkTaskId,
+	}
+	var rsp GetOutputVideoResponse
+	err = httpcall.JsonPost(ctx, e.EndPoint+"/GetOutputVideo", nil, req, &rsp)
+	if err != nil {
+		log.Printf("[fTaskId:%s, cutTaskId:%s]get video output error: %v\n",
+			ftask.TaskId, task.WorkTaskId, err)
+		return nil, err
+	}
+	if rsp.Reason != "" {
+		err = fmt.Errorf("[TaskId:%s]get video output error: %s", task.TaskId, rsp.Reason)
+		return nil, err
+	}
+	// log.Printf("[fTaskId:%s, cutTaskId:%s]finished cut %s from %g to %g, output: %s, timecost: %ds",
+	// 	ftask.TaskId, task.TaskId, task.InputVideo, task.CutStartTime, task.CutEndTime,
+	// 	rsp.OutputVideo, (time.Now().Unix() - ftask.TaskStartTime.Unix()))
+	return rsp.OutputVideo, nil
 }

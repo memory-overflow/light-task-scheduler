@@ -3,7 +3,6 @@ package memeorycontainer
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -95,8 +94,13 @@ func (q *queueContainer) ToRunningStatus(ctx context.Context, task *lighttasksch
 	newTask *lighttaskscheduler.Task, err error) {
 	task.TaskStartTime = time.Now()
 	task.TaskStatus = lighttaskscheduler.TASK_STATUS_RUNNING
-	if _, ok := q.runningTaskMap.LoadOrStore(task.TaskId, *task); !ok {
+	t, ok := q.runningTaskMap.LoadOrStore(task.TaskId, *task)
+	if !ok {
 		atomic.AddInt32(&q.runningTaskCount, 1)
+	} else {
+		nt := t.(lighttaskscheduler.Task)
+		nt.TaskAttemptsTime = task.TaskAttemptsTime
+		q.runningTaskMap.Store(task.TaskId, nt)
 	}
 	return task, nil
 }
@@ -135,8 +139,8 @@ func (q *queueContainer) ToFailedStatus(ctx context.Context, task *lighttasksche
 	if _, ok := q.runningTaskMap.LoadAndDelete(task.TaskId); ok {
 		atomic.AddInt32(&q.runningTaskCount, -1)
 	}
-	log.Printf("failed task %s, reason %v", task.TaskId, reason)
 	task.TaskStatus = lighttaskscheduler.TASK_STATUS_FAILED
+	task.FailedReason = reason.Error()
 	return task, nil
 }
 
@@ -154,6 +158,9 @@ func (q *queueContainer) ToExportStatus(ctx context.Context, task *lighttasksche
 // ToSuccessStatus 转移到执行成功状态
 func (q *queueContainer) ToSuccessStatus(ctx context.Context, task *lighttaskscheduler.Task) (
 	newTask *lighttaskscheduler.Task, err error) {
+	if _, ok := q.runningTaskMap.LoadAndDelete(task.TaskId); ok {
+		atomic.AddInt32(&q.runningTaskCount, -1)
+	}
 	task.TaskStatus = lighttaskscheduler.TASK_STATUS_SUCCESS
 	return task, nil
 }

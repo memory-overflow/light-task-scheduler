@@ -19,11 +19,21 @@ const (
 
 // Task 通用的任务结构
 type Task struct {
-	TaskId        string // 该任务的唯一标识id
-	TaskPriority  int    // 任务优先级
-	TaskItem      interface{}
-	TaskStartTime time.Time
-	TaskStatus    TaskStatus
+	// 该任务的唯一标识id，创建任务的时候赋予
+	TaskId string
+	// 任务优先级, 创建任务的时候可选
+	TaskPriority int
+	// 任务对象，创建任务的时候赋予
+	TaskItem interface{}
+
+	TaskStartTime time.Time // 框架赋予值
+	TaskEnbTime   time.Time // 框架赋予值
+	// 任务状态，任务容器负责赋予值
+	TaskStatus TaskStatus
+	// 任务容器负责赋予值
+	FailedReason string
+	// 任务已经重试的次数，任务容器负责赋予值
+	TaskAttemptsTime int32
 }
 
 // AsyncTaskStatus 异步任务状态

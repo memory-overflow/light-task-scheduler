@@ -1,4 +1,4 @@
-![image](https://github.com/memory-overflow/light-task-scheduler/assets/15645203/a6ea2b5b-875c-4b98-b1cd-9a9a27dea727)# 轻量级任务调度框架
+# 轻量级任务调度框架
 
 ## 框架设计
 框架对整个任务调度的过程进行4种抽象。

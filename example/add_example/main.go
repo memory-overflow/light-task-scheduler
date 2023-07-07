@@ -11,11 +11,16 @@ import (
 	lighttaskscheduler "github.com/memory-overflow/light-task-scheduler"
 	"github.com/memory-overflow/light-task-scheduler/actuator"
 	memeorycontainer "github.com/memory-overflow/light-task-scheduler/container/memory_container"
-	addexample "github.com/memory-overflow/light-task-scheduler/example/add_example/add"
 )
 
+// AddTask add 任务结构
+type AddTask struct {
+	StartTime time.Time
+	A, B      int32
+}
+
 func add(ctx context.Context, ftask *lighttaskscheduler.Task) (data interface{}, err error) {
-	task, ok := ftask.TaskItem.(addexample.AddTask)
+	task, ok := ftask.TaskItem.(AddTask)
 	if !ok {
 		return nil, fmt.Errorf("TaskItem not be set to AddTask")
 	}
@@ -69,7 +74,8 @@ func (rec addCallbackReceiver) GetCallbackChannel(ctx context.Context) chan ligh
 func modeCallback() *lighttaskscheduler.TaskScheduler {
 	container := memeorycontainer.MakeQueueContainer(10000, 100*time.Millisecond)
 	taskChannel := make(chan lighttaskscheduler.Task, 10000)
-	actuator, err := actuator.MakeFucntionActuator(add, taskChannel)
+	actuator, err := actuator.MakeFucntionActuator(add, nil)
+	actuator.SetCallbackChannel(taskChannel)
 	if err != nil {
 		log.Fatal("make fucntionActuato error: ", err)
 	}
@@ -99,7 +105,8 @@ func modeCallback() *lighttaskscheduler.TaskScheduler {
 func modePollingCallback() *lighttaskscheduler.TaskScheduler {
 	container := memeorycontainer.MakeQueueContainer(10000, 100*time.Millisecond)
 	taskChannel := make(chan lighttaskscheduler.Task, 10000)
-	actuator, err := actuator.MakeFucntionActuator(add, taskChannel)
+	actuator, err := actuator.MakeFucntionActuator(add, nil)
+	actuator.SetCallbackChannel(taskChannel)
 	if err != nil {
 		log.Fatal("make fucntionActuato error: ", err)
 	}
@@ -141,7 +148,7 @@ func main() {
 		sch.AddTask(context.Background(),
 			lighttaskscheduler.Task{
 				TaskId: strconv.Itoa(i),
-				TaskItem: addexample.AddTask{
+				TaskItem: AddTask{
 					A: r.Int31() % 1000,
 					B: r.Int31() % 1000,
 				},

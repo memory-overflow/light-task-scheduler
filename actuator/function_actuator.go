@@ -6,16 +6,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"sync"
 	"time"
 
 	framework "github.com/memory-overflow/light-task-scheduler"
-	lighttaskscheduler "github.com/memory-overflow/light-task-scheduler"
 )
 
 // fucntionActuator 函数执行器，同步任务异步化的示例
 type fucntionActuator struct {
 	runFunc         RunFunction         // 执行函数
+	initFunc        InitFunction        // 初始函数
 	callbackChannel chan framework.Task // 回调队列
 
 	runningTask sync.Map // taskId -> [framework.AsyncTaskStatus, cancel function] 映射
@@ -27,22 +28,32 @@ type fucntionActuator struct {
 // data 任务执行完成返回的数据
 type RunFunction func(ctx context.Context, task *framework.Task) (data interface{}, err error)
 
+// InitFunction 任务执行前的初始工作
+type InitFunction func(ctx context.Context, task *framework.Task) (newTask *framework.Task, err error)
+
 // runFunc 待调度的执行函数，注意实现该函数的时候，需要使用传入 ctx 进行超时和退出处理，框架否则无法控制超时时间
 // callbackChannel 用来执行器进行任务回调，返回已经完成的任务，如果不需要回调，传入 nil 即可
-func MakeFucntionActuator(runFunc RunFunction, callbackChannel chan framework.Task) (*fucntionActuator, error) {
+func MakeFucntionActuator(runFunc RunFunction, initFunc InitFunction) (*fucntionActuator, error) {
 	if runFunc == nil {
 		return nil, fmt.Errorf("runFunc is nil")
 	}
 	return &fucntionActuator{
-		runFunc:         runFunc,
-		callbackChannel: callbackChannel,
+		runFunc:  runFunc,
+		initFunc: initFunc,
 	}, nil
+}
+
+// SetCallbackChannel 任务配置回调 channel
+func (fc *fucntionActuator) SetCallbackChannel(callbackChannel chan framework.Task) {
+	fc.callbackChannel = callbackChannel
 }
 
 // Init 任务在被调度前的初始化工作
 func (fc *fucntionActuator) Init(ctx context.Context, task *framework.Task) (
 	newTask *framework.Task, err error) {
-	// 无初始化工作
+	if fc.initFunc != nil {
+		return fc.initFunc(ctx, task)
+	}
 	return task, nil
 }
 
@@ -51,7 +62,7 @@ func (fc *fucntionActuator) Start(ctx context.Context, ftask *framework.Task) (
 	newTask *framework.Task, ignoreErr bool, err error) {
 	if st, ok := fc.runningTask.Load(ftask.TaskId); ok {
 		status := st.([]interface{})[0].(framework.AsyncTaskStatus).TaskStatus
-		if status == lighttaskscheduler.TASK_STATUS_RUNNING || status == lighttaskscheduler.TASK_STATUS_SUCCESS {
+		if status == framework.TASK_STATUS_RUNNING || status == framework.TASK_STATUS_SUCCESS {
 			// 任务已经在执行中，不能重复执行
 			return ftask, false, fmt.Errorf("task %s is running", ftask.TaskId)
 		}
@@ -69,7 +80,16 @@ func (fc *fucntionActuator) Start(ctx context.Context, ftask *framework.Task) (
 			}, cancel})
 
 	go func() {
-		data, err := fc.runFunc(runCtx, ftask)
+		data, err := func() (data interface{}, err error) {
+			defer func() {
+				if p := recover(); p != nil {
+					data = nil
+
+					err = fmt.Errorf("panic: %v, stacktrace: %s", p, debug.Stack())
+				}
+			}()
+			return fc.runFunc(runCtx, ftask)
+		}()
 		st, ok := fc.runningTask.Load(ftask.TaskId)
 		if !ok {
 			// 任务可能因为超时被删除，或者手动暂停、不处理

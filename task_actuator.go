@@ -19,6 +19,6 @@ type TaskActuator interface {
 	// Stop 停止任务
 	Stop(ctx context.Context, task *Task) error
 
-	// GetTaskStatus 获取异步执行中的任务的状态
+	// GetAsyncTaskStatus 获取异步执行中的任务的状态
 	GetAsyncTaskStatus(ctx context.Context, tasks []Task) (status []AsyncTaskStatus, err error)
 }

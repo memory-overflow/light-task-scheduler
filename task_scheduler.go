@@ -276,9 +276,7 @@ func (s *TaskScheduler) scheduleOnce(ctx context.Context) {
 	}
 	waitTasks, err := s.Container.GetWaitingTask(ctx, s.config.TaskLimit-runningCount)
 	if err != nil {
-		if err != nil {
-			return
-		}
+		return
 	}
 	wg := stlextension.NewLimitWaitGroup(20)
 	for i := range waitTasks {
@@ -507,6 +505,9 @@ func (s *TaskScheduler) success(ctx context.Context, task *Task) (*Task, error) 
 	// 任务成功
 	newtask, err := s.Container.ToSuccessStatus(ctx, task)
 	if err != nil {
+		if s.Persistencer != nil {
+			s.Persistencer.DeletePersistenceData(ctx, task)
+		}
 		newtask, err = s.failed(ctx, newtask, err)
 	} else {
 		s.finshed(ctx, newtask)

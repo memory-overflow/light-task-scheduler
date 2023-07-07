@@ -10,12 +10,14 @@
 
 其中，任务容器、任务执行器、数据持久化可能和业务相关、所以用一系列的接口(interface)来抽象，开发者根据自己的业务实现接口。任务调度流程比较固定，由框架实现。
 
-<img width="" src="/uploads/B6EC16A926104FCB938F857DE54BD5D0/image.png" alt="image.png" />
+![image](https://github.com/memory-overflow/light-task-scheduler/assets/15645203/55bcf0e1-56cb-44cf-a757-3eb5a0a19b8e)
+
 
 
 任务调度架构如下：
 
-<img width="" src="/uploads/6CEAD9A8FA7246F6B001B98BBC00B0CB/image.png" alt="image.png" />
+![image](https://github.com/memory-overflow/light-task-scheduler/assets/15645203/0c44a687-66d2-49f6-9aa6-af5955bf5d80)
+
 
 
 主要分成三个主线程
@@ -51,7 +53,8 @@
 
 由于 MemeoryContainer 和 PersistContainer 各有优缺点，如果可以组合两种容器，生成一种新的任务容器[combinationContainer](https://github.com/memory-overflow/light-task-scheduler/blob/develop/upload/container.png)，既能够通过内存实现快写快读，又能够通过DB实现可持久化。
 
-<img width="" src="/uploads/5DAE554F938A4C6FB89098EB9125B6D9/image.png" alt="image.png" />
+![image](https://github.com/memory-overflow/light-task-scheduler/assets/15645203/3d8a8126-e9bb-4af8-873b-629141b6a8a7)
+
 
 
 ## Usage

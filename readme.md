@@ -75,6 +75,10 @@ func MakeScheduler(
 
 使用框架预制的队列容器和函数执行器可以轻松实现一个函数的调度。参考 [a+b example](https://github.com/memory-overflow/light-task-scheduler/blob/develop/example/add_example/main.go)。
 
+## Usage
+```
+go get -u github.com/memory-overflow/light-task-scheduler
+```
 
 
 ### Example: 使用内存容器实现视频裁剪异步任务调度
@@ -118,5 +122,8 @@ type VideoCutTask struct {
 #### 实现简单管理接口的 web 页面
 参考代码 [web.go](https://github.com/memory-overflow/light-task-scheduler/blob/develop/example/videocut_example/video_cut/web.go)。
 
+
 #### 启动服务
 执行 `go run example/videocut_example/main_web/main.go` 启动服务，然后在浏览器输入`http://127.0.0.1:8000/html`即可进入管理界面。
+
+

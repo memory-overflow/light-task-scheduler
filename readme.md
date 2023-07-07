@@ -1,4 +1,4 @@
-# 轻量级任务调度框架
+![image](https://github.com/memory-overflow/light-task-scheduler/assets/15645203/a6ea2b5b-875c-4b98-b1cd-9a9a27dea727)# 轻量级任务调度框架
 
 ## 框架设计
 框架对整个任务调度的过程进行4种抽象。
@@ -58,6 +58,10 @@
 
 
 ## Usage
+```
+go get -u github.com/memory-overflow/light-task-scheduler
+```
+
 
 ### 构建任务调度器
 
@@ -77,11 +81,6 @@ func MakeScheduler(
 框架预制了[函数执行器](https://github.com/memory-overflow/light-task-scheduler/blob/develop/actuator/function_actuator.go)，借助函数执行器，可以轻松实现函数调度。
 
 使用框架预制的队列容器和函数执行器可以轻松实现一个函数的调度。参考 [a+b example](https://github.com/memory-overflow/light-task-scheduler/blob/develop/example/add_example/main.go)。
-
-## Usage
-```
-go get -u github.com/memory-overflow/light-task-scheduler
-```
 
 
 ### Example: 使用内存容器实现视频裁剪异步任务调度

@@ -82,6 +82,10 @@ func MakeScheduler(
 
 使用框架预制的队列容器和函数执行器可以轻松实现一个函数的调度。参考 [a+b example](https://github.com/memory-overflow/light-task-scheduler/blob/develop/example/add_example/main.go)。
 
+### docker 执行器
+框架预制了[docker 执行器](https://github.com/memory-overflow/light-task-scheduler/blob/main/actuator/docker_actuator.go)，借助函数执行器，可以轻松实现函数调度。
+
+使用框架预制的队列容器和函数执行器可以轻松实现 docker 的调度。参考 [docker example](https://github.com/memory-overflow/light-task-scheduler/blob/dev/docker_actuator/example/docker_example/main.go)。
 
 ### Example: 使用内存容器实现视频裁剪异步任务调度
 本例子演示如何用本框架实现一个持久化的任务调度系统。包含一个简单的 web 管理界面。

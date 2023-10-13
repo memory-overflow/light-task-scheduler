@@ -287,7 +287,7 @@ func (s *TaskScheduler) scheduleOnce(ctx context.Context) {
 			newTask, ignore, err := s.Actuator.Start(ctx, &task)
 			if err != nil {
 				if !ignore {
-					s.Container.ToFailedStatus(ctx, newTask, err)
+					s.failed(s.ctx, newTask, fmt.Errorf("start task error: %v", err))
 				}
 				return
 			}
@@ -299,6 +299,7 @@ func (s *TaskScheduler) scheduleOnce(ctx context.Context) {
 			_, err = s.Container.ToRunningStatus(ctx, newTask)
 			if err != nil {
 				s.Actuator.Stop(ctx, newTask)
+				s.failed(s.ctx, newTask, fmt.Errorf("taskl ToRunningStatus error: %v", err))
 				return
 			}
 

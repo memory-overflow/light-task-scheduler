@@ -176,10 +176,18 @@ func (s *TaskScheduler) checkProcessed(taskId string) bool {
 			t:      time.Now(),
 			taskId: taskId,
 		}
-		s.count++
 		s.tail++
 		if s.tail >= s.bufflen {
 			s.tail = 0
+		}
+		if s.count >= s.bufflen {
+			// 满了， head 被覆盖
+			s.head++
+			if s.head >= s.bufflen {
+				s.head = 0
+			}
+		} else {
+			s.count++
 		}
 		return true
 	} else {
@@ -208,7 +216,7 @@ func (s *TaskScheduler) cleanProcessTask() {
 						delete(s.processedTask, s.taskProcessedTime[s.head].taskId)
 						s.head++
 						s.count--
-						if s.head > s.bufflen {
+						if s.head >= s.bufflen {
 							s.bufflen = 0
 						}
 					} else {

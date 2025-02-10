@@ -95,7 +95,9 @@ func (fc *fucntionActuator) Start(ctx context.Context, ftask *framework.Task) (
 			// 任务可能因为超时被删除，或者手动暂停、不处理
 			return
 		}
-		(st.([]interface{})[1].(context.CancelFunc))() // 任务执行完，也要执行对应的 cancel 函数
+		if st.([]interface{})[1] != nil {
+			(st.([]interface{})[1].(context.CancelFunc))() // 任务执行完，也要执行对应的 cancel 函数
+		}
 		var newStatus framework.AsyncTaskStatus
 		if err != nil {
 			newStatus = framework.AsyncTaskStatus{
@@ -140,7 +142,9 @@ func (fc *fucntionActuator) Stop(ctx context.Context, ftask *framework.Task) err
 		return nil
 	}
 	fc.clear(ftask.TaskId)
-	(st.([]interface{})[1].(context.CancelFunc))() // cancel 函数 ctx
+	if st.([]interface{})[1] != nil {
+		(st.([]interface{})[1].(context.CancelFunc))() // cancel 函数 ctx
+	}
 	return nil
 }
 

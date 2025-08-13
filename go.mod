@@ -9,15 +9,17 @@ require (
 	github.com/docker/go-connections v0.4.0
 	github.com/memory-overflow/go-common-library v0.0.0-20230427064346-aef3d86a1c60
 	github.com/memory-overflow/go-orderedmap v0.0.0-20230427064227-758a452e8a9c
-	gorm.io/driver/mysql v1.2.1
+	github.com/patrickmn/go-cache v2.1.0+incompatible
+	gorm.io/driver/mysql v1.5.1
 	gorm.io/gorm v1.25.12
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/go-sql-driver/mysql v1.7.0 // indirect
+	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
@@ -30,11 +32,12 @@ require (
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/stretchr/testify v1.7.0 // indirect
-	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/net v0.15.0 // indirect
-	golang.org/x/sys v0.12.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
+	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/sync v0.9.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/text v0.20.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
-	golang.org/x/tools v0.13.0 // indirect
+	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 )

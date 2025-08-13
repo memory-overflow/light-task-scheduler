@@ -7,10 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"runtime/debug"
-	"sync"
 	"time"
 
 	framework "github.com/memory-overflow/light-task-scheduler"
+	"github.com/patrickmn/go-cache"
 )
 
 // fucntionActuator 函数执行器，同步任务异步化的示例
@@ -19,8 +19,8 @@ type fucntionActuator struct {
 	initFunc        InitFunction        // 初始函数
 	callbackChannel chan framework.Task // 回调队列
 
-	runningTask sync.Map // taskId -> [framework.AsyncTaskStatus, cancel function] 映射
-	datatMap    sync.Map // taskId -> interface{} 映射
+	runningTask *cache.Cache // taskId -> [framework.AsyncTaskStatus, cancel function] 映射
+	datatMap    *cache.Cache // taskId -> interface{} 映射
 
 }
 
@@ -38,8 +38,10 @@ func MakeFucntionActuator(runFunc RunFunction, initFunc InitFunction) (*fucntion
 		return nil, fmt.Errorf("runFunc is nil")
 	}
 	return &fucntionActuator{
-		runFunc:  runFunc,
-		initFunc: initFunc,
+		runFunc:     runFunc,
+		initFunc:    initFunc,
+		runningTask: cache.New(5*24*time.Hour, 24*time.Hour), // 缓存5天
+		datatMap:    cache.New(5*24*time.Hour, 24*time.Hour), // 缓存5天
 	}, nil
 }
 
@@ -60,7 +62,7 @@ func (fc *fucntionActuator) Init(ctx context.Context, task *framework.Task) (
 // Start 执行任务
 func (fc *fucntionActuator) Start(ctx context.Context, ftask *framework.Task) (
 	newTask *framework.Task, ignoreErr bool, err error) {
-	if st, ok := fc.runningTask.Load(ftask.TaskId); ok {
+	if st, ok := fc.runningTask.Get(ftask.TaskId); ok {
 		status := st.([]interface{})[0].(framework.AsyncTaskStatus).TaskStatus
 		if status == framework.TASK_STATUS_RUNNING || status == framework.TASK_STATUS_SUCCESS {
 			// 任务已经在执行中，不能重复执行
@@ -72,12 +74,12 @@ func (fc *fucntionActuator) Start(ctx context.Context, ftask *framework.Task) (
 	ftask.TaskStatus = framework.TASK_STATUS_RUNNING
 	ftask.TaskStartTime = time.Now()
 	fc.datatMap.Delete(ftask.TaskId)
-	fc.runningTask.Store(ftask.TaskId,
+	fc.runningTask.Set(ftask.TaskId,
 		[]interface{}{
 			framework.AsyncTaskStatus{
 				TaskStatus: framework.TASK_STATUS_RUNNING,
 				Progress:   0.0,
-			}, cancel})
+			}, cancel}, cache.DefaultExpiration)
 
 	go func() {
 		data, err := func() (data interface{}, err error) {
@@ -90,7 +92,7 @@ func (fc *fucntionActuator) Start(ctx context.Context, ftask *framework.Task) (
 			}()
 			return fc.runFunc(runCtx, ftask)
 		}()
-		st, ok := fc.runningTask.Load(ftask.TaskId)
+		st, ok := fc.runningTask.Get(ftask.TaskId)
 		if !ok {
 			// 任务可能因为超时被删除，或者手动暂停、不处理
 			return
@@ -110,9 +112,9 @@ func (fc *fucntionActuator) Start(ctx context.Context, ftask *framework.Task) (
 				TaskStatus: framework.TASK_STATUS_SUCCESS,
 				Progress:   100.0,
 			}
-			fc.datatMap.Store(ftask.TaskId, data) // 先存结果
+			fc.datatMap.Set(ftask.TaskId, data, cache.DefaultExpiration) // 先存结果
 		}
-		fc.runningTask.Store(ftask.TaskId, []interface{}{newStatus, nil})
+		fc.runningTask.Set(ftask.TaskId, []interface{}{newStatus, nil}, cache.DefaultExpiration)
 		if fc.callbackChannel != nil {
 			// 如果需要回调
 			callbackTask := *ftask
@@ -135,7 +137,7 @@ func (fc *fucntionActuator) clear(taskId string) {
 
 // Stop 停止任务
 func (fc *fucntionActuator) Stop(ctx context.Context, ftask *framework.Task) error {
-	st, ok := fc.runningTask.Load(ftask.TaskId)
+	st, ok := fc.runningTask.Get(ftask.TaskId)
 	if !ok {
 		// 未找到任务
 		fc.datatMap.Delete(ftask.TaskId)
@@ -152,7 +154,7 @@ func (fc *fucntionActuator) Stop(ctx context.Context, ftask *framework.Task) err
 func (fc *fucntionActuator) GetAsyncTaskStatus(ctx context.Context, ftasks []framework.Task) (
 	status []framework.AsyncTaskStatus, err error) {
 	for _, ftask := range ftasks {
-		fstatus, ok := fc.runningTask.Load(ftask.TaskId)
+		fstatus, ok := fc.runningTask.Get(ftask.TaskId)
 		if !ok {
 			status = append(status, framework.AsyncTaskStatus{
 				TaskStatus:   framework.TASK_STATUS_FAILED,
@@ -173,7 +175,7 @@ func (fc *fucntionActuator) GetAsyncTaskStatus(ctx context.Context, ftasks []fra
 // GetOutput ...
 func (fc *fucntionActuator) GetOutput(ctx context.Context, ftask *framework.Task) (
 	data interface{}, err error) {
-	res, ok := fc.datatMap.Load(ftask.TaskId)
+	res, ok := fc.datatMap.Get(ftask.TaskId)
 	if !ok {
 		return nil, fmt.Errorf("not found result for task %s", ftask.TaskId)
 	}

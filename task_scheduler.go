@@ -164,14 +164,17 @@ func (s *TaskScheduler) Close() {
 	s.cancel()
 }
 
-func (s *TaskScheduler) checkProcessed(taskId string) bool {
+func (s *TaskScheduler) checkProcessed(t *Task) bool {
 	if !s.enableProcessedCheck {
+		return true
+	}
+	if t.TaskStatus == TASK_STATUS_RUNNING {
 		return true
 	}
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if _, ok := s.processedTask[taskId]; !ok {
+	if _, ok := s.processedTask[t.TaskId]; !ok {
 		if s.count >= s.bufflen {
 			// 满了， 清除一个头部数据
 			delete(s.processedTask, s.taskProcessedTime[s.head].taskId)
@@ -181,10 +184,10 @@ func (s *TaskScheduler) checkProcessed(taskId string) bool {
 				s.head = 0
 			}
 		}
-		s.processedTask[taskId] = true
+		s.processedTask[t.TaskId] = true
 		s.taskProcessedTime[s.tail] = processTime{
 			t:      time.Now(),
-			taskId: taskId,
+			taskId: t.TaskId,
 		}
 		s.tail++
 		if s.tail >= s.bufflen {
@@ -345,7 +348,7 @@ func (s *TaskScheduler) updateTaskStatus() {
 func (s *TaskScheduler) updateCallbackTask() {
 	for t := range s.config.CallbackReceiver.GetCallbackChannel(s.ctx) {
 		// 可能是轮询已经处理过，或者重复回调
-		if !s.checkProcessed(t.TaskId) {
+		if !s.checkProcessed(&t) {
 			continue
 		}
 		s.wg.Add(1)
@@ -404,7 +407,7 @@ func (s *TaskScheduler) updateOnce(ctx context.Context) {
 			defer s.wg.Done()
 			if st.TaskStatus == TASK_STATUS_FAILED {
 				// 已经回调处理过
-				if !s.checkProcessed(task.TaskId) {
+				if !s.checkProcessed(&task) {
 					return
 				}
 				// 失败可以重试
@@ -429,7 +432,7 @@ func (s *TaskScheduler) updateOnce(ctx context.Context) {
 				}
 			} else if st.TaskStatus == TASK_STATUS_SUCCESS {
 				// 已经回调处理过
-				if !s.checkProcessed(task.TaskId) {
+				if !s.checkProcessed(&task) {
 					return
 				}
 				s.export(ctx, &task)

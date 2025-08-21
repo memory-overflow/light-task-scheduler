@@ -31,7 +31,7 @@ type Task struct {
 	// 任务状态，任务容器负责赋予值
 	TaskStatus TaskStatus
 	// 任务容器负责赋予值
-	FailedReason string
+	FailedReason error
 	// 任务已经重试的次数，任务容器负责赋予值
 	TaskAttemptsTime int32
 }

@@ -140,7 +140,7 @@ func (q *queueContainer) ToFailedStatus(ctx context.Context, task *lighttasksche
 		atomic.AddInt32(&q.runningTaskCount, -1)
 	}
 	task.TaskStatus = lighttaskscheduler.TASK_STATUS_FAILED
-	task.FailedReason = reason.Error()
+	task.FailedReason = reason
 	return task, nil
 }
 

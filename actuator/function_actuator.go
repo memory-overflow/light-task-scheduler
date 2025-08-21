@@ -121,7 +121,7 @@ func (fc *fucntionActuator) Start(ctx context.Context, ftask *framework.Task) (
 			callbackTask.TaskStatus = newStatus.TaskStatus
 			callbackTask.TaskEnbTime = time.Now()
 			if newStatus.FailedReason != nil {
-				callbackTask.FailedReason = newStatus.FailedReason.Error()
+				callbackTask.FailedReason = newStatus.FailedReason
 			}
 			fc.callbackChannel <- callbackTask
 		}

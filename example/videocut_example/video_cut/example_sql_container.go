@@ -261,7 +261,7 @@ func (e *videoCutSqlContainer) ToFailedStatus(ctx context.Context, ftask *framew
 		return ftask, fmt.Errorf("task %s not found, may status has been changed", task.TaskId)
 	}
 	task.Status, ftask.TaskStatus = framework.TASK_STATUS_FAILED, framework.TASK_STATUS_FAILED
-	task.FailedReason, ftask.FailedReason = reason.Error(), reason.Error()
+	task.FailedReason, ftask.FailedReason = reason.Error(), reason
 	task.EndAt, ftask.TaskEnbTime = &t, t
 	ftask.TaskItem = task
 	return ftask, nil

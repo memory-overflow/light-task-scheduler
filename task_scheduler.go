@@ -2,7 +2,6 @@ package lighttaskscheduler
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"runtime/debug"
@@ -374,7 +373,7 @@ func (s *TaskScheduler) updateCallbackTask() {
 						}
 					}
 				} else {
-					s.failed(s.ctx, &task, errors.New(task.FailedReason))
+					s.failed(s.ctx, &task, task.FailedReason)
 				}
 			} else if task.TaskStatus == TASK_STATUS_SUCCESS {
 				s.export(s.ctx, &task)
